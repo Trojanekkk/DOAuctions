@@ -1,2 +1,2 @@
-# DOAuctions
+# DOClans
 Browser-game tool
