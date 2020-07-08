@@ -20,8 +20,8 @@ class MainApp:
         self.entry_nickname = tk.Entry(master, text="Nickname")
         self.entry_password = tk.Entry(master, text="Password")
 
-        self.button_login = tk.Button(master, text="Login")
-        self.button_sync = tk.Button(master, text="Resync")
+        self.button_login = tk.Button(master, text="Login", command=self.login)
+        self.button_sync = tk.Button(master, text="Resync", command=self.sync)
 
         self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="80")
 
@@ -37,6 +37,44 @@ class MainApp:
         # Set initial state
         self.entry_nickname.insert(0, "Nickname")
         self.entry_password.insert(0, "Password")
+
+    def login(self):
+        self.nickname = self.entry_nickname.get()
+        password = self.entry_password.get()
+        self.session_requests = requests.session()
+        login_url = 'https://www.darkorbit.pl/?lang=pl&ref_sid=b9d0df61f0c484f8c0c2b74fc19f9107&ref_pid=22&__utma=-&__utmb=-&__utmc=-&__utmx=-&__utmz=-&__utmv=-&__utmk=38294271'
+        result = self.session_requests.get(login_url)
+
+        tree = html.fromstring(result.text)
+        auth_token = list(set(tree.xpath("//input[@name='reloadToken']/@value")))[0]
+        login_destination = list(set(tree.xpath("//form[@name='bgcdw_login_form']/@action")))[0]
+
+        payload = {
+            'username': self.nickname,
+            'password': password,
+            'reloadToken': auth_token
+        }
+
+        result = self.session_requests.post(
+            login_destination,
+            payload,
+            headers = dict(referer=login_url)
+        )
+    
+        if result.status_code == 200:
+            self.entry_nickname.config(state="disabled")
+
+            self.entry_password.delete(0, tk.END)
+            self.entry_password.insert(0, "*" * len(password))
+            self.entry_password.config(state="disabled")
+            
+            self.button_login.config(state="disabled")
+
+    def sync(self):
+        pass
+
+    def getAuctionState (self):
+        pass
 
 if __name__ == "__main__":
     root = tk.Tk()
