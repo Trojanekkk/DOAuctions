@@ -17,8 +17,8 @@ class MainApp:
         self.master = master
         self.master.title("DOAuction Tool by MaksimGBV")
 
-        self.entry_nickname = tk.Entry(master, text="Nickname")
-        self.entry_password = tk.Entry(master, text="Password")
+        self.entry_nickname = tk.Entry(master)
+        self.entry_password = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
         self.button_sync = tk.Button(master, text="Resync", command=self.sync)
@@ -42,8 +42,8 @@ class MainApp:
         self.nickname = self.entry_nickname.get()
         password = self.entry_password.get()
         self.session_requests = requests.session()
-        login_url = 'https://www.darkorbit.pl/?lang=pl&ref_sid=b9d0df61f0c484f8c0c2b74fc19f9107&ref_pid=22&__utma=-&__utmb=-&__utmc=-&__utmx=-&__utmz=-&__utmv=-&__utmk=38294271'
-        result = self.session_requests.get(login_url)
+        self.login_url = 'https://www.darkorbit.pl/?lang=pl&ref_sid=b9d0df61f0c484f8c0c2b74fc19f9107&ref_pid=22&__utma=-&__utmb=-&__utmc=-&__utmx=-&__utmz=-&__utmv=-&__utmk=38294271'
+        result = self.session_requests.get(self.login_url)
 
         tree = html.fromstring(result.text)
         auth_token = list(set(tree.xpath("//input[@name='reloadToken']/@value")))[0]
@@ -58,7 +58,7 @@ class MainApp:
         result = self.session_requests.post(
             login_destination,
             payload,
-            headers = dict(referer=login_url)
+            headers = dict(referer=self.login_url)
         )
     
         if result.status_code == 200:
@@ -70,11 +70,36 @@ class MainApp:
             
             self.button_login.config(state="disabled")
 
+            self.getAuctionState()
+
     def sync(self):
-        pass
+        self.getAuctionState()
 
     def getAuctionState (self):
-        pass
+        self.listbox_items.delete(0, tk.END)
+
+        result = self.session_requests.get(
+            "https://pl2.darkorbit.com/indexInternal.es?action=internalAuction",
+            headers = dict(referer=self.login_url)
+        )
+
+        tree = html.fromstring(result.text)
+
+        auction_item = [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
+        auction_winner = [x.strip() for x in tree.xpath("//td[@class='auction_item_highest']/text()")]
+        auction_current = [x.strip() for x in tree.xpath("//td[@class='auction_item_current']/text()")]
+        auction_you = [x.strip() for x in tree.xpath("//td[@class='auction_item_you']/text()")]
+
+        for i, item in enumerate(auction_item):
+            self.listbox_items.insert(
+                tk.END, 
+                "{} : {} : {} : {}".format(
+                    item.strip(),
+                    auction_winner[i], 
+                    auction_current[i], 
+                    auction_you[i]
+                )
+            )
 
 if __name__ == "__main__":
     root = tk.Tk()
