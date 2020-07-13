@@ -19,24 +19,32 @@ class MainApp:
 
         self.entry_nickname = tk.Entry(master)
         self.entry_password = tk.Entry(master)
+        self.entry_price = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
         self.button_sync = tk.Button(master, text="Resync", command=self.sync)
+        self.button_bid = tk.Button(master, text="Bid once", command=self.bid)
+        self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
-        self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="80")
+        self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="15")
 
         # Put elements in the window
         self.entry_nickname.grid(row=0, column=0)
         self.entry_password.grid(row=0, column=1)
+        self.entry_price.grid(row=2, column=0)
         
         self.button_login.grid(row=0, column=2, sticky=tk.W+tk.E)
         self.button_sync.grid(row=0, column=3, sticky=tk.W+tk.E)
+        self.button_bid.grid(row=2, column=1, sticky=tk.W+tk.E)
+        self.button_zombie.grid(row=2, column=2, sticky=tk.W+tk.E)
 
         self.listbox_items.grid(row=1, column=0, columnspan=4)
 
         # Set initial state
         self.entry_nickname.insert(0, "Nickname")
         self.entry_password.insert(0, "Password")
+        self.entry_price.insert(0, "Price in cr")
+        self.listbox_items.configure(font=("Consolas", 10))
 
     def login(self):
         self.nickname = self.entry_nickname.get()
@@ -85,21 +93,45 @@ class MainApp:
 
         tree = html.fromstring(result.text)
 
-        auction_item = [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
-        auction_winner = [x.strip() for x in tree.xpath("//td[@class='auction_item_highest']/text()")]
-        auction_current = [x.strip() for x in tree.xpath("//td[@class='auction_item_current']/text()")]
-        auction_you = [x.strip() for x in tree.xpath("//td[@class='auction_item_you']/text()")]
+        self.auction_item = ['ITEM NAME'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
+        self.auction_winner = ['WINNER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_highest']/text()")]
+        self.auction_current = ['CURRENT OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_current']/text()")]
+        self.auction_you = ['YOUR OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_you']/text()")]
 
-        for i, item in enumerate(auction_item):
+        column_item = self.createColumn(self.auction_item)
+        column_winner = self.createColumn(self.auction_winner, True)
+        column_current = self.createColumn(self.auction_current, True)
+        column_you = self.createColumn(self.auction_you, True)
+
+        for i, item in enumerate(self.auction_item):
             self.listbox_items.insert(
                 tk.END, 
-                "{} : {} : {} : {}".format(
-                    item.strip(),
-                    auction_winner[i], 
-                    auction_current[i], 
-                    auction_you[i]
+                "{}  {}  {}  {}".format(
+                    column_item[i], 
+                    column_current[i], 
+                    column_you[i],
+                    column_winner[i]
                 )
             )
+
+    def bid(self):
+        pass
+
+    def zombie(self):
+        pass
+    
+    def createColumn (self, arr, justifyRight = False):
+        longest = len(max(arr, key=len))
+        
+        tmp = []
+        for element in arr:
+            whitespace = ' ' * (longest - len(element) + 1)
+            if justifyRight:
+                tmp.append(whitespace + element)
+            else:
+                tmp.append(element + whitespace)
+            
+        return tmp
 
 if __name__ == "__main__":
     root = tk.Tk()
