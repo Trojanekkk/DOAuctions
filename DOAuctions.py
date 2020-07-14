@@ -1,6 +1,7 @@
 import json, codecs
 import time
 import tkinter as tk
+import re
 
 import requests
 from lxml import html
@@ -101,6 +102,16 @@ class MainApp:
         )
 
         tree = html.fromstring(result.text)
+
+        cd = re.findall(r'\d+', re.findall(r'counterWeek.*myBidCount', result.text, re.DOTALL)[0])
+        countdown = {
+            "seconds" : cd[0],
+            "minutes" : cd[1],
+            "hours" : cd[2],
+            "days" : cd[3]
+        }
+
+        self.var_countdown_hour.set("Left: {}:{}".format(countdown['minutes'], countdown['seconds']))
 
         self.auction_item = ['ITEM NAME'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
         self.auction_winner = ['WINNER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_highest']/text()")]
