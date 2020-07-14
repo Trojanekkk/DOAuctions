@@ -4,7 +4,6 @@ import tkinter as tk
 
 import requests
 from lxml import html
-import getpass
 
 def isEmpty (clanAttrArr):
     if (len(clanAttrArr) > 0):
@@ -17,33 +16,43 @@ class MainApp:
         self.master = master
         self.master.title("DOAuction Tool by MaksimGBV")
 
+        self.var_countdown_hour = tk.StringVar()
+
+        self.label_countdown = tk.Label(master, textvariable=self.var_countdown_hour)
+
         self.entry_nickname = tk.Entry(master)
         self.entry_password = tk.Entry(master)
         self.entry_price = tk.Entry(master)
+        self.entry_interval = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
         self.button_sync = tk.Button(master, text="Resync", command=self.sync)
-        self.button_bid = tk.Button(master, text="Bid once", command=self.bid)
+        self.button_bid = tk.Button(master, text="Bid once at the end", command=self.bid)
         self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
         self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="15")
 
         # Put elements in the window
+        self.label_countdown.grid(row=0, column=2)
+
         self.entry_nickname.grid(row=0, column=0)
         self.entry_password.grid(row=0, column=1)
         self.entry_price.grid(row=2, column=0)
+        self.entry_interval.grid(row=2, column=1)
         
-        self.button_login.grid(row=0, column=2, sticky=tk.W+tk.E)
-        self.button_sync.grid(row=0, column=3, sticky=tk.W+tk.E)
-        self.button_bid.grid(row=2, column=1, sticky=tk.W+tk.E)
-        self.button_zombie.grid(row=2, column=2, sticky=tk.W+tk.E)
+        self.button_login.grid(row=0, column=3, sticky=tk.W+tk.E)
+        self.button_sync.grid(row=0, column=4, sticky=tk.W+tk.E)
+        self.button_bid.grid(row=2, column=2, columnspan=2, sticky=tk.W+tk.E)
+        self.button_zombie.grid(row=2, column=4, sticky=tk.W+tk.E)
 
-        self.listbox_items.grid(row=1, column=0, columnspan=4)
+        self.listbox_items.grid(row=1, column=0, columnspan=5)
 
         # Set initial state
+        self.var_countdown_hour.set("Left: 00:00")
         self.entry_nickname.insert(0, "Nickname")
         self.entry_password.insert(0, "Password")
         self.entry_price.insert(0, "Price in cr")
+        self.entry_interval.insert(0, "Interval in s")
         self.listbox_items.configure(font=("Consolas", 10))
 
     def login(self):
