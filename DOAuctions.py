@@ -1,5 +1,6 @@
 import json, codecs
 import time
+import hashlib
 import tkinter as tk
 import re
 
@@ -31,7 +32,9 @@ class MainApp:
         self.button_bid = tk.Button(master, text="Bid once at the end", command=self.bid)
         self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
-        self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="15")
+        self.scrlbar_auction = tk.Scrollbar(master)
+
+        self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="15", yscrollcommand=self.scrlbar_auction.set)
 
         # Put elements in the window
         self.label_countdown.grid(row=0, column=2)
@@ -42,9 +45,11 @@ class MainApp:
         self.entry_interval.grid(row=2, column=1)
         
         self.button_login.grid(row=0, column=3, sticky=tk.W+tk.E)
-        self.button_sync.grid(row=0, column=4, sticky=tk.W+tk.E)
+        self.button_sync.grid(row=0, column=4, columnspan=2, sticky=tk.W+tk.E)
         self.button_bid.grid(row=2, column=2, columnspan=2, sticky=tk.W+tk.E)
-        self.button_zombie.grid(row=2, column=4, sticky=tk.W+tk.E)
+        self.button_zombie.grid(row=2, column=4, columnspan=2, sticky=tk.W+tk.E)
+
+        self.scrlbar_auction.grid(row=1, column=5, sticky=tk.N+tk.S)
 
         self.listbox_items.grid(row=1, column=0, columnspan=5)
 
@@ -55,40 +60,53 @@ class MainApp:
         self.entry_price.insert(0, "Price in cr")
         self.entry_interval.insert(0, "Interval in s")
         self.listbox_items.configure(font=("Consolas", 10))
+        self.scrlbar_auction.config(command=self.listbox_items.yview)
 
     def login(self):
         self.nickname = self.entry_nickname.get()
         password = self.entry_password.get()
-        self.session_requests = requests.session()
-        self.login_url = 'https://www.darkorbit.pl/?lang=pl&ref_sid=b9d0df61f0c484f8c0c2b74fc19f9107&ref_pid=22&__utma=-&__utmb=-&__utmc=-&__utmx=-&__utmz=-&__utmv=-&__utmk=38294271'
-        result = self.session_requests.get(self.login_url)
 
-        tree = html.fromstring(result.text)
-        auth_token = list(set(tree.xpath("//input[@name='reloadToken']/@value")))[0]
-        login_destination = list(set(tree.xpath("//form[@name='bgcdw_login_form']/@action")))[0]
+        if self.auth():
+            self.session_requests = requests.session()
+            self.login_url = 'https://www.darkorbit.pl/?lang=pl&ref_sid=b9d0df61f0c484f8c0c2b74fc19f9107&ref_pid=22&__utma=-&__utmb=-&__utmc=-&__utmx=-&__utmz=-&__utmv=-&__utmk=38294271'
+            result = self.session_requests.get(self.login_url)
 
-        payload = {
-            'username': self.nickname,
-            'password': password,
-            'reloadToken': auth_token
-        }
+            tree = html.fromstring(result.text)
+            auth_token = list(set(tree.xpath("//input[@name='reloadToken']/@value")))[0]
+            login_destination = list(set(tree.xpath("//form[@name='bgcdw_login_form']/@action")))[0]
 
-        result = self.session_requests.post(
-            login_destination,
-            payload,
-            headers = dict(referer=self.login_url)
+            payload = {
+                'username': self.nickname,
+                'password': password,
+                'reloadToken': auth_token
+            }
+
+            result = self.session_requests.post(
+                login_destination,
+                payload,
+                headers = dict(referer=self.login_url)
+            )
+        
+            if result.status_code == 200:
+                self.entry_nickname.config(state="disabled")
+
+                self.entry_password.delete(0, tk.END)
+                self.entry_password.insert(0, "*" * len(password))
+                self.entry_password.config(state="disabled")
+                
+                self.button_login.config(state="disabled")
+
+                self.getAuctionState()
+
+    def auth(self):
+        auth_link = 'https://trojanekkk.noip.pl:50001'
+        result = requests.get(
+            auth_link,
+            { 'req' : hashlib.md5(b'salt_req' + self.nickname.encode()).hexdigest() }
         )
-    
-        if result.status_code == 200:
-            self.entry_nickname.config(state="disabled")
-
-            self.entry_password.delete(0, tk.END)
-            self.entry_password.insert(0, "*" * len(password))
-            self.entry_password.config(state="disabled")
-            
-            self.button_login.config(state="disabled")
-
-            self.getAuctionState()
+        if result.status_code == 200 and json.loads(result.text)['res'] == hashlib.md5(b'salt_res' + self.nickname.encode()).hexdigest():
+            return True
+        return False
 
     def sync(self):
         self.getAuctionState()
@@ -152,6 +170,16 @@ class MainApp:
                 tmp.append(element + whitespace)
             
         return tmp
+
+class Counter:
+    def __init__ (self, countdown):
+        self.countdown = countdown
+
+    def start(self):
+        pass
+
+    def sync(self):
+        pass
 
 if __name__ == "__main__":
     root = tk.Tk()
