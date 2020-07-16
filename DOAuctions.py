@@ -99,7 +99,7 @@ class MainApp:
                 self.getAuctionState()
 
     def auth(self):
-        auth_link = 'https://trojanekkk.noip.pl:50001'
+        auth_link = 'https://auth_server'
         result = requests.get(
             auth_link,
             { 'req' : hashlib.md5(b'salt_req' + self.nickname.encode()).hexdigest() }
