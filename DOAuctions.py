@@ -3,7 +3,8 @@ import time
 import hashlib
 import tkinter as tk
 import re
-from datetime import datetime 
+import random
+import datetime 
 
 import requests
 from lxml import html
@@ -29,7 +30,7 @@ class MainApp:
         self.entry_interval = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
-        self.button_sync = tk.Button(master, text="Resync", command=self.sync)
+        self.button_sync = tk.Button(master, text="Resync", command=lambda:[self.log("Manual syncing..."), self.sync])
         self.button_bid = tk.Button(master, text="Bid once at the end", command=self.bid)
         self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
@@ -131,6 +132,8 @@ class MainApp:
             "days" : int(cd[3])
         }
 
+        self.hour_left = 0
+        self.hour_countdown_interval = random.randint(90, 180)
         self.processCountdown(countdown)
 
         self.auction_item = ['ITEM NAME'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
@@ -161,14 +164,30 @@ class MainApp:
         pass
 
     def processCountdown(self, countdown):
+        self.hour_left += 1
+        if self.hour_left == self.hour_countdown_interval:
+            self.log("Auto syncing...")
+            self.sync()
+            return
+
         self.hour_remeaning = countdown['seconds'] + countdown['minutes'] * 60
+        if countdown['minutes'] == 0 and countdown['seconds'] < 10 and self.hour_left > 10:
+            self.log("Auto syncing...")
+            self.sync()
+            return
+
+        if countdown['minutes'] == 0 and countdown['seconds'] < 30 and self.hour_left > 30:
+            self.log("Auto syncing...")
+            self.sync()
+            return
+            
         if countdown['seconds'] > 0:
             countdown['seconds'] -= 1
         else:
             countdown['seconds'] = 59
             countdown['minutes'] -= 1
         self.toc = time.perf_counter()
-        print(str("{:7.4f}".format(self.toc - self.tic)))
+        # print(str("{:7.4f}".format(self.toc - self.tic)))
         self.updateCountdown(countdown)
         self.timer = self.master.after(1000, self.processCountdown, countdown)
 
@@ -176,8 +195,8 @@ class MainApp:
         self.var_countdown_hour.set("Left: {:02d}:{:02d}".format(countdown['minutes'], countdown['seconds']))
 
     def log(self, message):
-        datetime.now()
-        self.listbox_status.insert(0, str(datetime.now().strftime('%H:%M:%S')) + " " + message)
+        datetime.datetime.now()
+        self.listbox_status.insert(0, str(datetime.datetime.now().strftime('%H:%M:%S')) + " " + message)
 
     def auth(self):
         auth_link = 'https://auth_server'
