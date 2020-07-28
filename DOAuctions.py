@@ -108,6 +108,7 @@ class MainApp:
             self.log("Checking license FAILED")
 
     def sync(self):
+        self.master.after_cancel(self.timer)
         self.getAuctionState()
 
     def getAuctionState (self):
@@ -118,6 +119,7 @@ class MainApp:
             headers = dict(referer=self.login_url)
         )
         self.log("Getting auction status DONE")
+        self.tic = time.perf_counter()
 
         tree = html.fromstring(result.text)
 
@@ -129,7 +131,6 @@ class MainApp:
             "days" : int(cd[3])
         }
 
-        self.tic = time.perf_counter()
         self.processCountdown(countdown)
 
         self.auction_item = ['ITEM NAME'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
@@ -160,7 +161,8 @@ class MainApp:
         pass
 
     def processCountdown(self, countdown):
-        if countdown['seconds'] >= 0:
+        self.hour_remeaning = countdown['seconds'] + countdown['minutes'] * 60
+        if countdown['seconds'] > 0:
             countdown['seconds'] -= 1
         else:
             countdown['seconds'] = 59
@@ -168,10 +170,10 @@ class MainApp:
         self.toc = time.perf_counter()
         print(str("{:7.4f}".format(self.toc - self.tic)))
         self.updateCountdown(countdown)
-        self.master.after(1000, self.processCountdown, countdown)
+        self.timer = self.master.after(1000, self.processCountdown, countdown)
 
     def updateCountdown(self, countdown):
-        self.var_countdown_hour.set("Left: {}:{}".format(countdown['minutes'], countdown['seconds']))
+        self.var_countdown_hour.set("Left: {:02d}:{:02d}".format(countdown['minutes'], countdown['seconds']))
 
     def log(self, message):
         datetime.now()
