@@ -60,6 +60,7 @@ class MainApp:
         # Set initial state
         self.var_countdown_hour.set("Left: 00:00")
         self.entry_nickname.insert(0, "Nickname")
+        self.entry_nickname.focus_set()
         self.entry_password.insert(0, "Password")
         self.entry_price.insert(0, "Price in cr")
         self.entry_interval.insert(0, "Interval in s")
@@ -93,6 +94,7 @@ class MainApp:
                 payload,
                 headers = dict(referer=self.login_url)
             )
+
             self.log("Logging in DONE")
         
             if result.status_code == 200:
@@ -140,6 +142,8 @@ class MainApp:
         self.auction_winner = ['WINNER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_highest']/text()")]
         self.auction_current = ['CURRENT OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_current']/text()")]
         self.auction_you = ['YOUR OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_you']/text()")]
+        self.item_loot_id = ['LOOT ID'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_instant']/input[5]/@value")]
+        self.bidAction = tree.xpath("//form[@name='placeBid']/@action")[0]
 
         column_item = self.createColumn(self.auction_item)
         column_winner = self.createColumn(self.auction_winner, True)
