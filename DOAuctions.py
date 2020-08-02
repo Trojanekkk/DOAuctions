@@ -30,7 +30,7 @@ class MainApp:
         self.entry_interval = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
-        self.button_sync = tk.Button(master, text="Resync", command=lambda:[self.log("Manual syncing..."), self.sync])
+        self.button_sync = tk.Button(master, text="Resync", command=lambda:[self.log("STATUS: Manual syncing"), self.sync()])
         self.button_bid = tk.Button(master, text="Bid once at the end", command=self.bid)
         self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
@@ -38,6 +38,17 @@ class MainApp:
 
         self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="15", yscrollcommand=self.scrlbar_auction.set)
         self.listbox_status = tk.Listbox(master, height="2")
+
+        # Set initial state
+        self.var_countdown_hour.set("Left: 00:00")
+        self.entry_nickname.insert(0, "Nickname")
+        self.entry_nickname.focus_set()
+        self.entry_password.insert(0, "Password")
+        self.entry_price.insert(0, "Price in cr")
+        self.entry_interval.insert(0, "Interval in s")
+        self.listbox_items.configure(font=("Consolas", 10))
+        self.scrlbar_auction.config(command=self.listbox_items.yview)
+        self.log("STATUS: Initialization... DONE")
 
         # Put elements in the window
         self.label_countdown.grid(row=0, column=2)
@@ -57,27 +68,16 @@ class MainApp:
         self.listbox_items.grid(row=1, column=0, columnspan=5)
         self.listbox_status.grid(row=3, column=0, columnspan=6, sticky=tk.W+tk.E)
 
-        # Set initial state
-        self.var_countdown_hour.set("Left: 00:00")
-        self.entry_nickname.insert(0, "Nickname")
-        self.entry_nickname.focus_set()
-        self.entry_password.insert(0, "Password")
-        self.entry_price.insert(0, "Price in cr")
-        self.entry_interval.insert(0, "Interval in s")
-        self.listbox_items.configure(font=("Consolas", 10))
-        self.scrlbar_auction.config(command=self.listbox_items.yview)
-        self.log("Initialization... DONE")
-
     def login(self):
         self.nickname = self.entry_nickname.get()
         password = self.entry_password.get()
 
         if self.auth():
-            self.log("Checking license DONE")
+            self.log("STATUS: Checking license DONE")
             self.session_requests = requests.session()
-            self.login_url = 'https://www.darkorbit.pl/?lang=pl&ref_sid=b9d0df61f0c484f8c0c2b74fc19f9107&ref_pid=22&__utma=-&__utmb=-&__utmc=-&__utmx=-&__utmz=-&__utmv=-&__utmk=38294271'
+            self.login_url = 'https://www.darkorbit.pl/'
             result = self.session_requests.get(self.login_url)
-            self.log("Collecting login info & tokens DONE")
+            self.log("STATUS: Collecting login info & tokens DONE")
 
             tree = html.fromstring(result.text)
             auth_token = list(set(tree.xpath("//input[@name='reloadToken']/@value")))[0]
@@ -95,7 +95,7 @@ class MainApp:
                 headers = dict(referer=self.login_url)
             )
 
-            self.log("Logging in DONE")
+            self.log("STATUS: Logging in DONE")
         
             if result.status_code == 200:
                 self.entry_nickname.config(state="disabled")
@@ -108,20 +108,21 @@ class MainApp:
 
                 self.getAuctionState()
         else:
-            self.log("Checking license FAILED")
+            self.log("ATTENTION: Checking license FAILED")
 
     def sync(self):
         self.master.after_cancel(self.timer)
         self.getAuctionState()
 
-    def getAuctionState (self):
+    def getAuctionState(self):
         self.listbox_items.delete(0, tk.END)
 
+        self.auction_url = "https://pl2.darkorbit.com/indexInternal.es?action=internalAuction"
         result = self.session_requests.get(
-            "https://pl2.darkorbit.com/indexInternal.es?action=internalAuction",
+            self.auction_url,
             headers = dict(referer=self.login_url)
         )
-        self.log("Getting auction status DONE")
+        self.log("STATUS: Getting auction status DONE")
         self.tic = time.perf_counter()
 
         tree = html.fromstring(result.text)
@@ -143,7 +144,7 @@ class MainApp:
         self.auction_current = ['CURRENT OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_current']/text()")]
         self.auction_you = ['YOUR OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_you']/text()")]
         self.item_loot_id = ['LOOT ID'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_instant']/input[5]/@value")]
-        self.bidAction = tree.xpath("//form[@name='placeBid']/@action")[0]
+        self.bid_destination = tree.xpath("//form[@name='placeBid']/@action")[0]
 
         column_item = self.createColumn(self.auction_item)
         column_winner = self.createColumn(self.auction_winner, True)
@@ -162,7 +163,33 @@ class MainApp:
             )
 
     def bid(self):
-        pass
+        if not self.listbox_items.curselection():
+            self.log("ATTENTION: Do not selected any item")
+            return 0
+
+        if self.listbox_items.curselection()[0] == 0:
+            self.log("ATTENTION: It's not an item")
+            return 0
+
+        if isinstance(self.entry_price.get(), int):
+            self.log("ATTENTION: Price is not an integer")
+            return 0
+        
+        payload = {
+            "auctionType" : "hour",
+            "subAction" : "bid",
+            "lootId" : self.item_loot_id[self.listbox_items.curselection()[0]],
+            "credits" : int(self.entry_price.get())
+        }
+
+        result = self.session_requests.post(
+            "https://pl2.darkorbit.com" + self.bid_destination,
+            payload,
+            headers = dict(referer=self.auction_url)
+        )
+
+        self.log("STATUS: Auto syncing")
+        self.getAuctionState()
 
     def zombie(self):
         pass
@@ -170,18 +197,18 @@ class MainApp:
     def processCountdown(self, countdown):
         self.hour_left += 1
         if self.hour_left == self.hour_countdown_interval:
-            self.log("Auto syncing...")
+            self.log("STATUS: Auto syncing")
             self.sync()
             return
 
         self.hour_remeaning = countdown['seconds'] + countdown['minutes'] * 60
         if countdown['minutes'] == 0 and countdown['seconds'] < 10 and self.hour_left > 10:
-            self.log("Auto syncing...")
+            self.log("STATUS: Auto syncing")
             self.sync()
             return
 
         if countdown['minutes'] == 0 and countdown['seconds'] < 30 and self.hour_left > 30:
-            self.log("Auto syncing...")
+            self.log("STATUS: Auto syncing")
             self.sync()
             return
             
