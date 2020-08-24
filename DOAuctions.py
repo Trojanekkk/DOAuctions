@@ -21,6 +21,10 @@ class MainApp:
             "Show SID", 
             "Clear tracked"
         ]
+        
+        self.tracked_auction_type = []
+        self.tracked_loot_id = []
+        self.trakced_credits = []
 
         # Define elements
         self.master = master
@@ -28,24 +32,25 @@ class MainApp:
 
         self.var_countdown_hour = tk.StringVar()
         self.var_other = tk.StringVar()
+        self.var_price = tk.IntVar()
 
         self.label_countdown = tk.Label(master, textvariable=self.var_countdown_hour)
 
         self.entry_nickname = tk.Entry(master)
         self.entry_password = tk.Entry(master)
-        self.entry_price = tk.Entry(master)
+        self.entry_price = tk.Entry(master, textvariable=self.var_price)
         self.entry_interval = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
-        # self.button_sync = tk.Button(master, text="Resync", command=lambda:[self.log("STATUS: Manual syncing"), self.sync()])
         self.button_sync = tk.OptionMenu(self.master, self.var_other, *self.actions_list)
-        self.button_bid = tk.Button(master, text="Bid once at the end", command=self.bid)
+        self.button_bid = tk.Button(master, text="Bid once at the end", command=self.addTracked)
         self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
         self.scrlbar_auction = tk.Scrollbar(master)
 
-        self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="15", yscrollcommand=self.scrlbar_auction.set)
-        self.listbox_status = tk.Listbox(master, height="2")
+        self.listbox_items = tk.Listbox(master, selectmode=tk.SINGLE, width="90", height="13", yscrollcommand=self.scrlbar_auction.set)
+        self.listbox_status = tk.Listbox(master, height="3")
+        self.listbox_tracked = tk.Listbox(master, height="3")
 
         # Set initial state
         self.var_countdown_hour.set("Left: 00:00")
@@ -54,13 +59,14 @@ class MainApp:
         self.entry_nickname.insert(0, "Nickname")
         self.entry_nickname.focus_set()
         self.entry_password.insert(0, "Password")
-        self.entry_price.insert(0, "Price in cr")
+        self.var_price.set("Price in cr")
+        # self.entry_price.insert(0, "Price in cr")
         self.entry_interval.insert(0, "Interval in s")
         self.listbox_items.configure(font=("Consolas", 10))
         self.scrlbar_auction.config(command=self.listbox_items.yview)
         self.log("STATUS: Initialization... DONE")
 
-        # Put elements in the window
+        # Put elements into the window
         self.label_countdown.grid(row=0, column=2)
 
         self.entry_nickname.grid(row=0, column=0)
@@ -76,7 +82,8 @@ class MainApp:
         self.scrlbar_auction.grid(row=1, column=5, sticky=tk.N+tk.S)
 
         self.listbox_items.grid(row=1, column=0, columnspan=5)
-        self.listbox_status.grid(row=3, column=0, columnspan=6, sticky=tk.W+tk.E)
+        self.listbox_status.grid(row=3, column=0, columnspan=2, sticky=tk.W+tk.E)
+        self.listbox_tracked.grid(row=3, column=2, columnspan=4, sticky=tk.W+tk.E)
 
     def login(self):
         self.nickname = self.entry_nickname.get()
@@ -115,6 +122,8 @@ class MainApp:
                 self.entry_password.config(state="disabled")
                 
                 self.button_login.config(state="disabled")
+
+                
 
                 self.getAuctionState()
         else:
@@ -167,14 +176,14 @@ class MainApp:
             self.listbox_items.insert(
                 tk.END, 
                 "{}  {}  {}  {}".format(
-                    column_item[i], 
-                    column_current[i], 
+                    column_item[i],
+                    column_current[i],
                     column_you[i],
                     column_winner[i]
                 )
             )
 
-    def bid(self):
+    def addTracked(self):
         if not self.listbox_items.curselection():
             self.log("ATTENTION: Do not selected any item")
             return 0
@@ -183,15 +192,61 @@ class MainApp:
             self.log("ATTENTION: It's not an item")
             return 0
 
-        if isinstance(self.entry_price.get(), int):
+        if not isinstance(self.var_price.get(), int):
             self.log("ATTENTION: Price is not an integer")
             return 0
-        
+
+        loot_id = self.item_loot_id[self.listbox_items.curselection()[0]]
+        credit = self.var_price.get()
+        if loot_id in self.tracked_loot_id:
+            if credit == self.trakced_credits[self.tracked_loot_id.index(loot_id)]:
+                self.log("ATTENTION: Item is already tracked")
+                return 0
+            else:
+                itemIndex = self.tracked_loot_id.index(loot_id)
+                self.tracked_auction_type.pop(itemIndex)
+                self.tracked_loot_id.pop(itemIndex)
+                self.trakced_credits.pop(itemIndex)
+
+        if len(self.tracked_auction_type) >= 3:
+            self.tracked_auction_type.pop(0)
+            self.tracked_loot_id.pop(0)
+            self.trakced_credits.pop(0)
+
+        self.tracked_auction_type.append("hour")
+        self.tracked_loot_id.append(loot_id)
+        self.trakced_credits.append(credit)
+
+        self.updateTracked()
+
+    def updateTracked(self):
+        column_auction_type = self.createColumn(self.tracked_auction_type)
+        column_loot_id = self.createColumn(self.tracked_loot_id)
+        column_credits = self.createColumn(self.trakced_credits)
+
+        self.listbox_tracked.delete(0, tk.END)
+
+        for i, item in enumerate(self.tracked_auction_type):
+            self.listbox_tracked.insert(
+                tk.END, 
+                "{}  {}  {}".format(
+                    column_auction_type[i],
+                    column_loot_id[i],
+                    column_credits[i]
+                )
+            )
+
+    def clearTracked(self):
+        self.tracked_auction_type = []
+        self.tracked_loot_id = []
+        self.trakced_credits = []
+
+    def bid(self):
         payload = {
             "auctionType" : "hour",
             "subAction" : "bid",
             "lootId" : self.item_loot_id[self.listbox_items.curselection()[0]],
-            "credits" : int(self.entry_price.get())
+            "credits" : int(self.var_price.get())
         }
 
         result = self.session_requests.post(
@@ -248,6 +303,11 @@ class MainApp:
         elif action == 1:
             self.var_other.set("More")
             self.log("SID: " + self.sid)
+
+        elif action == 2:
+            self.var_other.set("More")
+            self.log("STATUS: Tracked items removed")
+            self.clearTracked()
 
         else:
             self.var_other.set("More")
