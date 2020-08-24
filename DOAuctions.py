@@ -15,12 +15,19 @@ def isEmpty (clanAttrArr):
     return False
 
 class MainApp:
-    def __init__ (self, master):  
+    def __init__ (self, master): 
+        self.actions_list = [
+            "Manual resync", 
+            "Show SID", 
+            "Clear tracked"
+        ]
+
         # Define elements
         self.master = master
         self.master.title("DOAuction Tool by MaksimGBV")
 
         self.var_countdown_hour = tk.StringVar()
+        self.var_other = tk.StringVar()
 
         self.label_countdown = tk.Label(master, textvariable=self.var_countdown_hour)
 
@@ -30,7 +37,8 @@ class MainApp:
         self.entry_interval = tk.Entry(master)
 
         self.button_login = tk.Button(master, text="Login", command=self.login)
-        self.button_sync = tk.Button(master, text="Resync", command=lambda:[self.log("STATUS: Manual syncing"), self.sync()])
+        # self.button_sync = tk.Button(master, text="Resync", command=lambda:[self.log("STATUS: Manual syncing"), self.sync()])
+        self.button_sync = tk.OptionMenu(self.master, self.var_other, *self.actions_list)
         self.button_bid = tk.Button(master, text="Bid once at the end", command=self.bid)
         self.button_zombie = tk.Button(master, text="Zombie bidding", command=self.zombie)
 
@@ -41,6 +49,8 @@ class MainApp:
 
         # Set initial state
         self.var_countdown_hour.set("Left: 00:00")
+        self.var_other.set("More")
+        self.var_other.trace("w", self.other_actions)
         self.entry_nickname.insert(0, "Nickname")
         self.entry_nickname.focus_set()
         self.entry_password.insert(0, "Password")
@@ -139,6 +149,8 @@ class MainApp:
         self.hour_countdown_interval = random.randint(90, 180)
         self.processCountdown(countdown)
 
+        self.sid = re.findall(r"'dosid=.*'", result.text)[0][7:-1]
+
         self.auction_item = ['ITEM NAME'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_name_col']/text()")]
         self.auction_winner = ['WINNER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_highest']/text()")]
         self.auction_current = ['CURRENT OFFER'] + [x.strip() for x in tree.xpath("//td[@class='auction_item_current']/text()")]
@@ -224,6 +236,21 @@ class MainApp:
 
     def updateCountdown(self, countdown):
         self.var_countdown_hour.set("Left: {:02d}:{:02d}".format(countdown['minutes'], countdown['seconds']))
+
+    def other_actions(self, *args):
+        action = self.actions_list.index(self.var_other.get())
+
+        if action == 0:
+            self.var_other.set("More")
+            self.log("STATUS: Manual syncing")
+            self.sync()
+
+        elif action == 1:
+            self.var_other.set("More")
+            self.log("SID: " + self.sid)
+
+        else:
+            self.var_other.set("More")
 
     def log(self, message):
         datetime.datetime.now()
