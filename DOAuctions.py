@@ -23,8 +23,9 @@ class MainApp:
         ]
         
         self.tracked_auction_type = []
+        self.tracked_item_name = []
         self.tracked_loot_id = []
-        self.trakced_credits = []
+        self.tracked_credits = []
 
         # Define elements
         self.master = master
@@ -196,33 +197,42 @@ class MainApp:
             self.log("ATTENTION: Price is not an integer")
             return 0
 
+        item_name = self.auction_item[self.listbox_items.curselection()[0]]
         loot_id = self.item_loot_id[self.listbox_items.curselection()[0]]
         credit = self.var_price.get()
         if loot_id in self.tracked_loot_id:
-            if credit == self.trakced_credits[self.tracked_loot_id.index(loot_id)]:
+            if credit == self.tracked_credits[self.tracked_loot_id.index(loot_id)]:
                 self.log("ATTENTION: Item is already tracked")
                 return 0
             else:
                 itemIndex = self.tracked_loot_id.index(loot_id)
                 self.tracked_auction_type.pop(itemIndex)
+                self.tracked_item_name.pop(itemIndex)
                 self.tracked_loot_id.pop(itemIndex)
-                self.trakced_credits.pop(itemIndex)
+                self.tracked_credits.pop(itemIndex)
 
         if len(self.tracked_auction_type) >= 3:
             self.tracked_auction_type.pop(0)
+            self.tracked_item_name.pop(0)
             self.tracked_loot_id.pop(0)
-            self.trakced_credits.pop(0)
+            self.tracked_credits.pop(0)
 
         self.tracked_auction_type.append("hour")
+        self.tracked_item_name.append(item_name)
         self.tracked_loot_id.append(loot_id)
-        self.trakced_credits.append(credit)
+        self.tracked_credits.append(credit)
 
         self.updateTracked()
 
     def updateTracked(self):
+        self.listbox_tracked.delete(0, tk.END)
+
+        if len(self.tracked_loot_id) < 1:
+            return 0
+
         column_auction_type = self.createColumn(self.tracked_auction_type)
-        column_loot_id = self.createColumn(self.tracked_loot_id)
-        column_credits = self.createColumn(self.trakced_credits)
+        column_item_name = self.createColumn(self.tracked_item_name, True)
+        column_credits = self.tracked_credits
 
         self.listbox_tracked.delete(0, tk.END)
 
@@ -231,15 +241,18 @@ class MainApp:
                 tk.END, 
                 "{}  {}  {}".format(
                     column_auction_type[i],
-                    column_loot_id[i],
+                    column_item_name[i],
                     column_credits[i]
                 )
             )
 
     def clearTracked(self):
         self.tracked_auction_type = []
+        self.tracked_item_name = []
         self.tracked_loot_id = []
-        self.trakced_credits = []
+        self.tracked_credits = []
+
+        self.updateTracked()
 
     def bid(self):
         payload = {
